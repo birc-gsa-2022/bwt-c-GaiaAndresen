@@ -1,3 +1,4 @@
+[![Open in Visual Studio Code](https://classroom.github.com/assets/open-in-vscode-c66648af7eb3fe8bc4f294546bfd86ef473780cde1dea487d3c4ff354943c9ae.svg)](https://classroom.github.com/online_ide?assignment_repo_id=9314938&assignment_repo_type=AssignmentRepo)
 # Burrows-Wheeler transform
 
 The tasks for this exercise are quite simple. Write a function that will do the Burrows-Wheeler transform on a string, and another function that will reverse it. The simplicity is deceptive, though, because quite a bit of work needs to be done in both of them. You know what the work is, however, and so you should be able to do it.
