@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+
 
 // Construct random nul-terminated string of length n (including sentinel)
 static void random_string(size_t n, char x[n], const char *alpha, int alpha_size)
@@ -16,6 +18,7 @@ static void random_string(size_t n, char x[n], const char *alpha, int alpha_size
 int main(void)
 {
     size_t n = 10;
+    n = 12;
     char x[n], y[n], z[n];
 
     for (int k = 0; k < 10; k++)

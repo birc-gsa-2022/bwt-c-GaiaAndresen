@@ -1,127 +1,136 @@
 #include "bwt.h"
 #include <assert.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct String {
-    char* string;
-    size_t n;
-    int alphabetSize;
-    int* sightings;
-};
 
-struct String* prepareString(const char* string, size_t n) {
-    struct String* x = malloc(sizeof *x);
-    x->n = n;
-    x->alphabetSize = 5; //Cheating for now, assume dna
+int *constructSARadix(const char* string, int n) {
+    int* saReader = malloc(n * sizeof *saReader);
+    int* saWriter = malloc(n * sizeof *saWriter);
 
-    x->sightings = malloc(x->alphabetSize*sizeof (*(x->sightings)));
-    x->sightings[0] = 1;
-
-    x->string = malloc(n*sizeof(*x->string));
-    strcpy(x->string, string);
-
-    for(int i=0; i<x->alphabetSize; i++) {
-        x->sightings[i] = 0;
-    }
-    char currChar;
-    for(int i=0; i<=n; i++) {
-        currChar = x->string[i];
-        x->string[i] =
-                currChar == '\0' ? 0 :
-                currChar == 'a' ? 1 :
-                currChar == 'c' ? 2 :
-                currChar == 'g' ? 3 :
-                currChar == 't' ? 4 :
-                currChar;
-        (x->sightings[x->string[i]])++;
-    }
-    return x;
-}
-
-int *constructSARadix(struct String string) {
-    char* x = string.string;
-    int n = string.n;
-    int alphabetSize = string.alphabetSize;
-    int* sightings = string.sightings;
-
-    int *sa = malloc(n * sizeof *sa);
-    int *saCopy = malloc(n * sizeof *sa);
+    int alphabetSize = 5; //TODO Remove assumption of dna
+    int* buckets = malloc(alphabetSize*sizeof *buckets);
+    int* bucketsIndices = calloc(alphabetSize, sizeof *bucketsIndices);
+    int* stringConvertion = malloc(n*sizeof *stringConvertion);
 
     for (int i = 0; i<n; i++) {
-        sa[i] = i;
+        saReader[i] = i;
+
+        char stringChar = string[i];
+        int bucketIndex =
+                //TODO Remove assumption of dna
+                stringChar == 't' ? 4:
+                stringChar == 'g' ? 3:
+                stringChar == 'c' ? 2:
+                stringChar == 'a'; //'a' => 1, '\0' => 0
+        stringConvertion[i] = bucketIndex;
+        bucketsIndices[bucketIndex]++;
     }
-    int *bucketsIndices = sightings;
+
     int accumSum = 0;
     for(int i=0; i<alphabetSize; i++) {
         int sighting = bucketsIndices[i];
         bucketsIndices[i] = accumSum;
         accumSum += sighting;
     }
-    int *buckets = malloc(alphabetSize*sizeof *buckets);
 
     for(int i=n-1; i>=0; i--) {
         memset(buckets, 0, alphabetSize * sizeof *buckets);
         for(int j=0; j<n; j++) {
-            int charIndex = (sa[j] + i) % n;
-            char c = x[charIndex];
+            int charIndex = (saReader[j] + i) % n;
+            int c = stringConvertion[charIndex];
             int elemInBucket = buckets[c]++;
             int saIndex = bucketsIndices[c] + elemInBucket;
-            saCopy[saIndex] = sa[j];
+            saWriter[saIndex] = saReader[j];
         }
-        int *temp = sa;
-        sa = saCopy;
-        saCopy = temp;
+        int* temp = saReader;
+        saReader = saWriter;
+        saWriter = temp;
     }
 
-    free(saCopy);
+    free(saWriter);
     free(buckets);
+    free(bucketsIndices);
+    free(stringConvertion);
 
-    return sa;
+    return saReader;
 }
 
 
 void bwt(size_t n, const char x[n], char y[n])
 {
-    struct String* preparedX = prepareString(x, n);
-    int* sa = constructSARadix(*preparedX);
-    for(int i=0; i<(preparedX->n)+1; i++) {
-        y[i] = sa[i] ? sa[i]-1: 0;
+    int* sa = constructSARadix(x, (int)n);
+    for(int i=0; i<n; i++) {
+        y[i] = sa[i] ? x[sa[i]-1] : '\0'; //Why is x mad about giving a char?
     }
-    free(preparedX->string);
-    free(preparedX->sightings);
-    free(preparedX);
     free(sa);
 }
 
-int** makeO(struct String* string) {
-    char currChar;
-    int aSize = string->alphabetSize;
-    int** O = malloc(aSize*sizeof(int*)); //TODO what is wrong with this line? SIGTRAP
-    for(int i=1; i<aSize; i++) {
-        int* column = calloc(1+string->n, sizeof(int));
-        for(int j=1; j<=string->n; j++) {
-            currChar = string->string[j-1];
+void makeOandC(const char* string, size_t n, int** O, int* C, int alphabetSize) {
+    int* convertedString = malloc(n*sizeof *convertedString);
+
+    for (int i = 0; i<n; i++) {
+        char stringChar = string[i];
+        int convertedChar =
+                //TODO Remove assumption of dna
+                stringChar == 't' ? 4:
+                stringChar == 'g' ? 3:
+                stringChar == 'c' ? 2:
+                stringChar == 'a'; //'a' => 1, '\0' => 0
+        convertedString[i] = convertedChar;
+        C[convertedChar]++;
+    }
+
+    int accum = 0;
+    for(int i=0; i<alphabetSize; i++) {
+        int val = C[i];
+        C[i] = accum;
+        accum += val;
+    }
+
+    int currChar;
+    int* firstColumn = calloc((1+n), sizeof *firstColumn);
+    O[0] = firstColumn;
+    for(int i=1; i<alphabetSize; i++) {
+        int* column = malloc((1+n)* sizeof *column);
+        column[0] = 0;
+        for(int j=1; j<=n; j++) {
+            currChar = convertedString[j-1];
             column[j] = column[j-1] + (currChar==i);
         }
         O[i] = column;
     }
-    return O;
+
+    free(convertedString);
 }
 
 void rbwt(size_t n, const char y[n], char x[n])
 {
-    struct String* preparedY = prepareString(y, n);
-    int** O = makeO(preparedY);
-    int* count = calloc(preparedY->alphabetSize, sizeof(int));
+    int alphabetSize = 5; //TODO Remove assumption of dna
 
-    x[n] = '\0';
+    int* C = calloc(alphabetSize,sizeof(*C));
+    int** O = malloc(alphabetSize*sizeof *O);
+
+    makeOandC(y, n, O, C, alphabetSize);
+
+    x[n-1] = '\0';
     int currentIndex = 0;
     char currChar;
-    for(int i=n-1; i>=0; i--) {
-        currChar = preparedY->string[currentIndex];
+    int OChar;
+    for(int i=(int)n-2; i>=0; i--) {
+        currChar = y[currentIndex];
         x[i] = currChar;
-        currentIndex = O[currChar][currentIndex] + count[currChar]++;
+        //TODO Remove assumption of dna
+        OChar = currChar == 't' ? 4:
+                currChar == 'g' ? 3:
+                currChar == 'c' ? 2:
+                currChar == 'a';
+        currentIndex = O[OChar][currentIndex] + C[OChar];
     }
+
+    free(C);
+    for(int i=0; i<alphabetSize; i++) {
+        free(O[i]);
+    }
+    free(O);
 }
